@@ -179,21 +179,15 @@ app.post('/api/submit', async (req, res) => {
     return res.status(500).json({ error: 'Failed to store submission' });
   }
 
-  // Step 2: Send email notification to team (non-critical)
-  try {
-    const { subject, body } = generateEmailBody({ borrowerProfile, matchedLenders, applicationId }, 'submission');
-    const mailOptions = {
-      from: `"${SENDER_NAME}" <${SENDER_EMAIL}>`,
-      to: TEAM_EMAILS.join(', '),
-      subject: subject,
-      text: body
-    };
-    await transporter.sendMail(mailOptions);
-    console.log(`[${new Date().toISOString()}] Application ${applicationId} - Email sent to team`);
-  } catch (emailError) {
-    console.error('Email error (non-blocking):', emailError.message);
-  }
+  // Step 2: Send email notification to team (fire-and-forget, non-blocking)
+  transporter.sendMail({
+    from: `"${SENDER_NAME}" <${SENDER_EMAIL}>`,
+    to: TEAM_EMAILS.join(', '),
+    subject: generateEmailBody({ borrowerProfile, matchedLenders, applicationId }, 'submission').subject,
+    text: generateEmailBody({ borrowerProfile, matchedLenders, applicationId }, 'submission').body
+  }).catch(emailError => console.error('Email error (non-blocking):', emailError.message));
 
+  // Always return success immediately after DB storage
   res.json({
     success: true,
     message: 'Application submitted successfully',
